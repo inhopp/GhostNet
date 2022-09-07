@@ -9,7 +9,7 @@ def parse_args():
     parser.add_argument("--device", type=str, default="0")
 
     # models
-    parser.add_argument("pretrained", type=bool, default=False)
+    parser.add_argument("--pretrained", type=bool, default=False)
     parser.add_argument("--input_size", type=int, default=224)
 
     # dataset
