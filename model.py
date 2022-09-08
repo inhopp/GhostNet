@@ -135,6 +135,7 @@ class GhostNet(nn.Module):
         self.head = nn.Sequential(OrderedDict([
             ('conv_pw', ConvBNAct(self.final_stage_channel, 960, 1, 1, 1, self.norm_layer, self.act_layer)),
             ('avg_pool', nn.AdaptiveAvgPool2d((1,1))),
+            ('conv_pw', ConvBNAct(960, num_features, 1, 1, 1, self.norm_layer, self.act_layer)),
             ('flatten', nn.Flatten()),
             ('dropout', nn.Dropout(p=0.2, inplace=True)),
             ('classifier', nn.Linear(num_features, num_classes) if num_classes else nn.Identity()),
@@ -145,7 +146,6 @@ class GhostNet(nn.Module):
 
         for i in range(len(model_config)):
             layers.append(block(model_config[i]))
-
             if i < len(model_config) - 1:
                 model_config[i+1].in_channel = model_config[i].out_channel
         
@@ -176,7 +176,7 @@ def weights_initialize(model):
 
 def get_ghostnet(num_classes=1000, **kwargs):
     model_config = [GBBolockConfig(*layer_config) for layer_config in get_ghostnet_structure()]
-    model = GhostNet(model_config, out_features=1280, num_classes=num_classes, block=GhostBottleneck)
+    model = GhostNet(model_config, num_features=1280, num_classes=num_classes, block=GhostBottleneck)
     weights_initialize(model)
 
     return model

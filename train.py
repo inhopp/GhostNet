@@ -1,5 +1,5 @@
 import os
-import tqdm
+from tqdm import tqdm
 import torch
 import torch.nn as nn
 from data import generate_loader
