@@ -1,7 +1,23 @@
 from turtle import forward
+from collections import OrderedDict
 import torch
 import torch.nn as nn
 import math
+
+class ConvBNAct(nn.Module):
+    '''Convolution-Normalization-Activation Module'''
+    def __init__(self, in_channel, out_channel, kernel_size, stride, groups, norm_layer, act_layer, conv_layer=nn.Conv2d):
+        super(ConvBNAct, self).__init__()
+        self.conv = conv_layer(in_channel, out_channel, kernel_size, stride=stride, padding=(kernel_size-1)//2, groups=groups, bias=False)
+        self.bn = norm_layer(out_channel)
+        self.act = act_layer(inplace=True)
+
+    def forward(self, x):
+        out = self.conv(x)
+        out = self.bn(out)
+        out = self.act(out)
+        return out
+
 
 class SEUnit(nn.Module):
     '''Squeeze-Excitation Unit'''
@@ -49,7 +65,7 @@ class GhostModule(nn.Module):
 
 
 class GBBolockConfig:
-    def __init__(self, dw_kernel_size: int, inter_channel: int, out_channel: int, use_se: int, stride: int, in_channel: int):
+    def __init__(self, dw_kernel_size: int, inter_channel: int, out_channel: int, use_se: int, stride: int):
         self.dw_kernel_size = dw_kernel_size
         self.inter_channel = inter_channel
         self.out_channel = out_channel
@@ -105,14 +121,24 @@ class GhostBottleneck(nn.Module):
 
 
 class GhostNet(nn.Module):
-    def __init__(self, model_config, out_channels=1280, num_classes=1000, block=GhostBottleneck, act_layer=nn.ReLU, norm_layer=nn.BatchNorm2d):
+    def __init__(self, model_config, num_features=1280, num_classes=1000, block=GhostBottleneck, act_layer=nn.ReLU, norm_layer=nn.BatchNorm2d):
         super(GhostNet, self).__init__()
         self.model_config = model_config
         self.norm_layer = norm_layer
         self.act_layer = act_layer
 
-        
+        self.in_channel = model_config[0].in_channel
+        self.final_stage_channel = model_config[-1].out_channel
 
+        self.stem = ConvBNAct(3, self.in_channel, 3, 2, 1, self.norm_layer, self.act_layer)
+        self.blocks = nn.Sequential(*self.make_layers(model_config, block))
+        self.head = nn.Sequential(OrderedDict([
+            ('conv_pw', ConvBNAct(self.final_stage_channel, 960, 1, 1, 1, self.norm_layer, self.act_layer)),
+            ('avg_pool', nn.AdaptiveAvgPool2d((1,1))),
+            ('flatten', nn.Flatten()),
+            ('dropout', nn.Dropout(p=0.2, inplace=True)),
+            ('classifier', nn.Linear(num_features, num_classes) if num_classes else nn.Identity()),
+        ]))
 
     def make_layers(self, model_config, block):
         layers = []
@@ -125,11 +151,40 @@ class GhostNet(nn.Module):
         
         return layers
 
+    def forward(self, x):
+        out = self.stem(x)
+        out = self.blocks(out)
+        out = self.head(out)
+        return out
+
+
+def weights_initialize(model):
+    for m in model.modules():
+        if isinstance(m, nn.Conv2d):
+            nn.init.kaiming_normal_(m.weight, mode='fan_out')
+            if m.bias is not None:
+                nn.init.zeros_(m.bias)
+        
+        elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+            nn.init.ones_(m.weight)
+            nn.init.zeros_(m.bias)
+        
+        elif isinstance(m, nn.Linear):
+            nn.init.normal_(m.weight, mean=0.0, std=0.01)
+            nn.init.zeros_(m.bias)
+
+
+def get_ghostnet(num_classes=1000, **kwargs):
+    model_config = [GBBolockConfig(*layer_config) for layer_config in get_ghostnet_structure()]
+    model = GhostNet(model_config, out_features=1280, num_classes=num_classes, block=GhostBottleneck)
+    weights_initialize(model)
+
+    return model
 
 
 def get_ghostnet_structure():
     return [
-    ''' kernel_size, expasion_size, out_channels, use_se, stide '''
+    # kernel_size, expasion_size, out_channels, use_se, stide 
         [3,  16,  16, 0, 1],
         [3,  48,  24, 0, 2],
         [3,  72,  24, 0, 1],
