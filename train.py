@@ -10,7 +10,7 @@ class Solver():
         self.opt = opt
         self.dev = torch.device("cuda: {}".format(opt.gpu) if torch.cuda.is_available() else "cpu")
         self.model = torch.hub.load('', 'ghostnet', opt.num_classes, source='local').to(self.dev)
-
+        print("device: ", self.dev)
         if opt.multigpu:
             self.model = nn.DataParallel(self.model, device_ids=self.opt.device_ids).to(self.dev)
 
@@ -32,8 +32,8 @@ class Solver():
 
         for epoch in range(opt.n_epoch):
             self.model.train()
-            tqdm_message = "epoch " + str(epoch) + "/" + str(opt.n_epoch)
-            for _, inputs in tqdm(enumerate(self.train_loader), desc=tqdm_message):
+            tqdm_message = "epoch " + str(epoch+1) + "/" + str(opt.n_epoch)
+            for _, inputs in enumerate(tqdm(self.train_loader, desc=tqdm_message, bar_format='{l_bar}{bar:50}{r_bar}{bar:-50b}')):
                 images = inputs[0].to(self.dev)
                 labels = inputs[1].to(self.dev)
                 preds = self.model(images)
@@ -48,7 +48,7 @@ class Solver():
 
                 if val_acc >= self.best_acc:
                     self.best_acc, self.best_epoch = val_acc, epoch
-                    self.save(epoch+1)
+                    self.save()
                 
                 print("Epoch [{}/{}] Loss: {:.3f}, Test AccL {:.3f}".format(epoch+1, opt.n_epoch, loss.item(), val_acc))
                 print("Best: {:.2f} @ {}".format(self.best_acc, self.best_epoch+1))
@@ -62,10 +62,10 @@ class Solver():
         for inputs in loader:
             images = inputs[0].to(self.dev)
             labels = inputs[1].to(self.dev)
-            outputs = self.net(images)
+            outputs = self.model(images)
             _, preds = torch.max(outputs.detach(), 1)
 
-            num_correct += (preds == labels).sum().items()
+            num_correct += (preds == labels).sum().item()
             num_total += labels.size(0)
         
         return num_correct / num_total
@@ -73,7 +73,7 @@ class Solver():
     def save(self):
         os.makedirs(os.path.join(self.opt.ckpt_root, self.opt.data_name), exist_ok=True)
         save_path = os.path.join(self.opt.ckpt_root, self.opt.data_name, "best_epoch.pt")
-        torch.save(self.net.state_dict(), save_path)
+        torch.save(self.model.state_dict(), save_path)
 
 
 

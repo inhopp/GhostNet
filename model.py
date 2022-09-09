@@ -1,4 +1,3 @@
-from turtle import forward
 from collections import OrderedDict
 import torch
 import torch.nn as nn
@@ -133,11 +132,11 @@ class GhostNet(nn.Module):
         self.stem = ConvBNAct(3, self.in_channel, 3, 2, 1, self.norm_layer, self.act_layer)
         self.blocks = nn.Sequential(*self.make_layers(model_config, block))
         self.head = nn.Sequential(OrderedDict([
-            ('conv_pw', ConvBNAct(self.final_stage_channel, 960, 1, 1, 1, self.norm_layer, self.act_layer)),
+            ('conv_pw_1', ConvBNAct(self.final_stage_channel, 960, 1, 1, 1, self.norm_layer, self.act_layer)),
             ('avg_pool', nn.AdaptiveAvgPool2d((1,1))),
-            ('conv_pw', ConvBNAct(960, num_features, 1, 1, 1, self.norm_layer, self.act_layer)),
+            ('conv_pw_2', ConvBNAct(960, num_features, 1, 1, 1, self.norm_layer, self.act_layer)),
             ('flatten', nn.Flatten()),
-            ('dropout', nn.Dropout(p=0.2, inplace=True)),
+            ('dropout', nn.Dropout(p=0.2, inplace=False)),
             ('classifier', nn.Linear(num_features, num_classes) if num_classes else nn.Identity()),
         ]))
 
