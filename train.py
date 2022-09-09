@@ -50,7 +50,7 @@ class Solver():
                     self.best_acc, self.best_epoch = val_acc, epoch
                     self.save()
                 
-                print("Epoch [{}/{}] Loss: {:.3f}, Test AccL {:.3f}".format(epoch+1, opt.n_epoch, loss.item(), val_acc))
+                print("Epoch [{}/{}] Loss: {:.3f}, Test Acc: {:.3f}".format(epoch+1, opt.n_epoch, loss.item(), val_acc))
                 print("Best: {:.2f} @ {}".format(self.best_acc, self.best_epoch+1))
 
     @torch.no_grad()
