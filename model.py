@@ -98,7 +98,15 @@ class GhostBottleneck(nn.Module):
         self.ghost2 = GhostModule(c.inter_channel, c.out_channel, relu=False)
 
         # shortcut-connection
-        self.shortcut_connection = c.stride==1 and c.in_channel==c.out_channel
+        if c.stride==1 and c.in_channel==c.out_channel:
+            self.shortcut_connection = nn.Sequential()
+        else:
+            self.shortcut_connection = nn.Sequential(
+                nn.Conv2d(c.in_channel, c.in_channel, c.dw_kernel_size, stride=c.stride, padding=(c.dw_kernel_size-1)//2, groups=c.in_channel, bias=False),
+                nn.BatchNorm2d(c.in_channel),
+                nn.Conv2d(c.in_channel, c.out_channel, 1, stride=1, padding=0, bias=False),
+                nn.BatchNorm2d(c.out_channel),
+            )
 
     def forward(self, x):
         out = self.ghost1(x)
@@ -112,8 +120,7 @@ class GhostBottleneck(nn.Module):
 
         out = self.ghost2(out)
 
-        if self.shortcut_connection:
-            out += x
+        out += self.shortcut_connection(x)
 
         return out
 
