@@ -21,6 +21,12 @@
         └── README.md
 ```
 
+- `data/__init__.py` : dataset loader
+- `data/dataset.py` : data preprocess & get item
+- `model.py` : Define block and construct Model
+- `option.py` : Environment setting
+- `utils` : general utils
+- `hubconf.py` : model hub
 
 <br>
 
