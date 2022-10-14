@@ -8,7 +8,7 @@ from option import get_option
 class Solver():
     def __init__(self, opt):
         self.opt = opt
-        self.dev = torch.device("cuda: {}".format(opt.gpu) if torch.cuda.is_available() else "cpu")
+        self.dev = torch.device("cuda:{}".format(opt.gpu) if torch.cuda.is_available() else "cpu")
         self.model = torch.hub.load('', 'ghostnet', opt.num_classes, source='local').to(self.dev)
         print("device: ", self.dev)
         if opt.multigpu:
